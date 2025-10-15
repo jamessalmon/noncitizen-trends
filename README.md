@@ -33,6 +33,5 @@ US Geological Survey
 
 simplemaps.com
 
-### 📄 View the Full Report
-[Click here to open the HTML analysis](PROJECT.html)
+
 
