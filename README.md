@@ -33,5 +33,6 @@ US Geological Survey
 
 simplemaps.com
 
+🔗 [View the full HTML report here](https://jamessalmon.github.io/noncitizen-trends/PROJECT.html)
 
 
