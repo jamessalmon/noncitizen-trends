@@ -21,6 +21,22 @@ Do data trends reflect or contradict the intensity of recent media narratives ar
 
 How do these patterns vary across different regions or city sizes?
 
+**Results & Findings:**
+
+The analysis reveals a far more nuanced picture of immigration than what is often portrayed in public discourse or media rhetoric. While non-citizens remain a significant and growing part of the population in many U.S. metro areas, the actual scale of this growth is modest.
+
+Across the 100 largest U.S. metropolitan areas, the average increase in the non-citizen population share from 2018 to 2023 was only +0.19 percentage points, with even the most dramatic local increases remaining below +2 percentage points. This contrasts sharply with the perception of a nationwide surge in “illegal immigration.”
+
+Regional trends provide deeper insight:
+
+Western cities (e.g., in California and Oregon) often saw declines in non-citizen populations, likely linked to high living costs and shifting labor markets.
+
+Southern metro areas, particularly in Florida, experienced moderate growth, reflecting cultural and economic factors such as established Latin American communities and demand for labor in hospitality, construction, and agriculture.
+
+Texas, despite being part of the South, appeared to diverge from this trend, potentially due to stricter immigration enforcement policies.
+
+Overall, these findings exemplify how media narratives can often exaggerate immigration trends and make clear that localized, data-driven policy descisions need to be made, rather than sweeping ideological rhetoric.
+
 **Technologies:**
 
 R, R Markdown
