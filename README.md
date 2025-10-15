@@ -55,9 +55,16 @@ To reproduce this analysis, open `PROJECT.Rmd` in RStudio and ensure the followi
 
 Data sources can be accessed through ACS2018.csv, ACS2023.csv, and uscities.csv
 
+
+**Below is a sample graph from the project:**
 ![Percentage Point Change in Non-Citizen Population by City](https://raw.githubusercontent.com/jamessalmon/noncitizen-trends/main/SampleGraph.png)
 
 
 🔗 [View the full HTML report here](https://jamessalmon.github.io/noncitizen-trends/PROJECT.html)
+
+**Author:** James Salmon  
+**Affiliation:** Computational Social Science Student, University of Pittsburgh  
+**Date:** April 2025
+
 
 
