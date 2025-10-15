@@ -1,0 +1,404 @@
+---
+title: "PROJECT"
+output: pdf_document
+date: "2025-04-07"
+---
+
+ANALYSIS OF AMERICAN IMMIGRATION PATTERNS FROM 2018 TO 2023
+
+Part I: Introduction
+
+  For my project, I analyzed changes in the non-citizen population across the 100 largest metropolitan areas in the United States from 2018 to 2023. This investigation was prompted by a viral tweet claiming a 2,000% increase in Pittsburgh's migrant population between 2023 and 2024—a claim that seemed implausible. Rather than looking at foreign-born populations broadly, I focused on non-citizens, as much of the recent political discourse has centered on undocumented immigration. By exploring city-level shifts in non-citizen proportions, I aim to provide a more nuanced view of immigration in America than national narratives often suggest.
+  
+  I focused specifically on the 100 largest metropolitan areas in the country, not only to reduce clutter in my visualizations, but also because I presumed that most non-citizens would choose to live in areas that are more diverse and have more economic opportunities. I didn't only explore what cities experienced the largest change in non-citizen proportions, but also which regions of the country were specifically experiencing changes. As the current administration continues to demonize immigrants, I think it is incredibly important to actually understand these dynamics at a local level, where we can understand where the largest changes are actually happening.
+  
+Part II: Data
+
+  My data was primarily sourced from the American Community Survey (ACS), a yearly survey conducted by the Census Bureau. The ACS collects data that was in the past, only collected by the decennial census, which was only conducted every 10 years. The data collected by the ACS includes things such as ancestry, citizen status, educational attainment, migration, housing, employment, and much more. Using the ACS allows me to focus on changes over a shorter time frame, which I think is important given how relatively recently illegal immigration has become such a hot button issue.
+  
+  For my analysis, I decided to focus on the ACS surveys from 2018 and 2023, specifically from their selected social characteristics survey. This survey specifically tracks things like disability status, educational attainment, language spoken at home, veteran status, and much more. 
+  The main variable I will be working with is 'difference_in_proportion' which subtracts the proportion of non-citizens in a given city in 2023 from the proportion of non-citizens in that city in 2018. This essentially represents the change (in percentage points) of the non-citizen proportion between 2018 and 2023. I focused on proportion instead of raw non-citizen population to account for general population changes in these cities. 
+  
+  I also sourced geographical information from simplemaps.com, who offer an up-to-date database on US cities and towns from sources like the Census Bureau and U.S. Geological Survey. 
+  
+```{r echo = FALSE}
+acs_2018 <- read.csv("ACS2018.csv")
+acs_2023 <- read.csv("ACS2023.csv")
+```
+
+```{r echo = FALSE, warning = FALSE}
+library(dplyr)
+
+acs_2023 <- acs_2023 %>%
+  filter(!DP02_0088E %in% ("null")) %>%
+  mutate(DP02_0088E = as.numeric(DP02_0088E))
+
+acs_2018 <- acs_2018 %>%
+  filter(!DP02_0086E %in% ("null")) %>%
+  mutate(DP02_0086E = as.numeric(DP02_0086E))
+
+acs_2018 <- acs_2018 %>%
+  mutate(CBSA = substr(GEO_ID, nchar(GEO_ID) - 4, nchar(GEO_ID))) #because acs 2023 and 2018 had slightly different formatting, I had to extract CBSA values from the GEO_ID column to merge the datasets
+
+acs_2023 <- acs_2023 %>%
+  mutate(CBSA = substr(GEO_ID, nchar(GEO_ID) - 4, nchar(GEO_ID)))
+
+top_metros <- acs_2018 %>% 
+  group_by(CBSA) %>% 
+  summarize(total_pop_2018 = sum(as.numeric(DP02_0086E), na.rm = TRUE)) %>% 
+  arrange(desc(total_pop_2018)) %>% 
+  slice_head(n = 100) %>% 
+  pull(CBSA)
+
+```
+
+
+```{r echo = FALSE}
+acs_2018_filtered <- acs_2018 %>%
+  filter(CBSA %in% top_metros)
+
+acs_2023_filtered <- acs_2023 %>%
+  filter(CBSA %in% top_metros)
+```
+
+```{r include = FALSE}
+setdiff(acs_2018_filtered$CBSA, acs_2023_filtered$CBSA)
+
+acs_2018 %>% filter(grepl("Cleveland", NAME)) %>% select(CBSA, NAME)
+acs_2023 %>% filter(grepl("Cleveland", NAME)) %>% select(CBSA, NAME)
+
+acs_2018_filtered %>%
+  filter(CBSA %in% c("17460", "19380")) %>%
+  select(NAME, CBSA)
+```
+
+```{r echo = FALSE}
+dayton_cleveland_2023 <- acs_2023 %>%
+  filter(grepl("Dayton", NAME) | grepl("Cleveland", NAME)) %>%
+  select(NAME, CBSA)
+```
+
+```{r echo = FALSE}
+cbsa_mapping <- data.frame(
+  CBSA_2018 = c("19280", "17460"),  
+  CBSA_2023 = c("19430", "17410")   #Cleveland and Dayton had changed their CBSA codes from 2018 to 2023, so I had to manually fix that
+)
+
+#acs_2023_filtered <- bind_rows(acs_2023_filtered, acs_2023_missing_cities)
+```
+
+```{r include = FALSE}
+acs_2018_ranked <- acs_2018_filtered %>%
+  mutate(DP02_0086E = as.numeric(DP02_0086E)) %>%
+  arrange(desc(DP02_0086E)) %>%
+  mutate(population_rank_2018 = row_number()) #sorting dataset by 2018 population
+
+```
+
+
+```{r include = FALSE}
+combined_dataset <- acs_2018_filtered %>%
+  select(GEO_ID, CBSA, NAME, DP02_0086E, DP02_0095E) %>%
+  rename(
+    `Total pop 2018` = DP02_0086E,
+    `Total non-citizen pop 2018` = DP02_0095E
+  ) %>%
+  left_join(
+    acs_2023_filtered %>%
+      select(CBSA, DP02_0088E, DP02_0097E) %>%
+      rename(
+        `Total pop 2023` = DP02_0088E,
+        `Total non-citizen pop 2023` = DP02_0097E
+      ),
+    by = "CBSA"
+  ) #renaming columns and merging datasets
+
+```
+
+```{r echo = FALSE}
+combined_dataset <- combined_dataset %>%
+  mutate(
+    `Total pop 2023` = case_when(
+      CBSA == "17460" ~ 2158932,
+      CBSA == "19380" ~ 814363,
+      TRUE ~ as.numeric(`Total pop 2023`)
+    ),
+    `Total non-citizen pop 2023` = case_when(
+      CBSA == "17460" ~ 51116,
+      CBSA == "19380" ~ 17539,
+      TRUE ~ as.numeric(`Total non-citizen pop 2023`) #fixing formatting issues with N/As when merging datasets
+    )
+  )
+```
+
+```{r echo = FALSE}
+combined_dataset <- combined_dataset %>%
+  mutate(
+    non_citizen_proportion_2018 = as.numeric(`Total non-citizen pop 2018`) / as.numeric(`Total pop 2018`),
+    non_citizen_proportion_2023 = as.numeric(`Total non-citizen pop 2023`) / as.numeric(`Total pop 2023`),
+  )
+
+
+combined_dataset <- combined_dataset %>%
+  mutate(
+    difference_in_proportion = round((non_citizen_proportion_2023 - non_citizen_proportion_2018) * 100, 2)
+  ) 
+
+```
+
+
+Part III: Analysis 1
+
+```{r echo = FALSE}
+library(ggplot2)
+
+ggplot(combined_dataset, aes(x = difference_in_proportion)) +
+  geom_density(fill = "lightblue", alpha = 0.6) +
+  labs(
+    title = "Density of Change in Immigrant Proportion (Percentage Points, 2018–2023)",
+    x = "Change in Proportion",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+mean(combined_dataset$difference_in_proportion)
+max(combined_dataset$difference_in_proportion)
+min(combined_dataset$difference_in_proportion)
+```
+
+  The graph above is a simple density plot showing the difference in proportion (in percentage points) across the country. As you can see, the change is largely very minor across the board. The data is somewhat normally distributed, with a long tail. The average change in non-citizen proportion was just +0.19 percentage points. Already, it has been made clearly evident that the narrative of illegal aliens flooding our cities is massively blown out of proportion. Even the largest increase was only +1.91 percentage points, while the largest decrease was -2.46 points - which shows a larger decrease than increase.
+
+  Next, I wanted to simply analyze how population affects not only the change in non-citizen proportion in cities, but the non-citizen proportion as a whole. 
+  
+```{r echo = FALSE}
+library(ggplot2)
+
+ggplot(combined_dataset, aes(x = `Total pop 2023`, y = non_citizen_proportion_2023)) +
+  geom_point(color = "blue", alpha = 0.6) +  # Add points
+  scale_x_log10() + 
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = "Non-citizen Proportion of Cities vs. 2023 Population (Log Scale)",
+    x = "2023 Population (Log Scale)",
+    y = "Non-citizen Proportion"
+  ) +
+  theme(legend.position = "none")
+
+
+```
+  In the above graph, we can see that larger cities generally have a larger proportion of non-citizens. While the correlation isn't incredibly strong, I still think that it raises important points about immigration. It makes sense that non-citizens would go to these cities due to increased economic opportunity, and more diverse populations. It would be far easier for these people to integrate in places where there are others from their culture or who speak their language. In smaller cities, non-citizens may find it less ideal to live due to more homogeneous communities, where standing out can increase the risk of scrutiny or even deportation.
+  
+```{r echo = FALSE}
+library(ggplot2)
+
+ggplot(combined_dataset, aes(x = `Total pop 2023`, y = difference_in_proportion)) +
+  geom_point(color = "black", alpha = 0.6) +  # Add points
+  scale_x_log10() + 
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = "Change in Non-Citizen Proportion (Percentage Points, 2018-2023) vs. 2023 Population (Log Scale)",
+    x = "2023 Population (Log Scale)",
+    y = "Change in Non-Citizen Proportion"
+  ) +
+  theme(legend.position = "none")
+```
+  Here, I analyzed how the change in non-citizen proportion relates to population. Here there is a slight negative correlation, although, admittedly, it isn't very strong. While the correlation is there, I suspect that this result may just be a result of the nature of how proportions work. In smaller towns, an individual non-citizen moving in would simply have a larger impact on the change in proportion, leading to a higher average change in proportion in smaller towns. 
+  
+  While this relationship between population size and changes in non-citizen proportion offers some insight, it's only one piece of the puzzle. To better understand the broader patterns at play, it's important to also consider the geographic distribution of these changes. Mapping the data allows us to visualize where these shifts are occurring and may reveal regional trends or clusters that a simple correlation cannot capture.
+
+```{r echo = FALSE}
+us_coords <- read.csv("uscities.csv")
+```
+
+```{r echo = FALSE}
+combined_dataset <- combined_dataset %>%
+  mutate(NAME = sub(",.*|-.*|/.*", "", NAME))  # Removes everything after a comma or dash
+
+us_coords_filtered <- us_coords %>%
+  filter(city %in% unique(combined_dataset$NAME))
+
+combined_dataset <- combined_dataset %>%
+  left_join(us_coords_filtered, by = c("NAME" = "city"))
+
+
+combined_dataset <- combined_dataset %>%
+  distinct(NAME, .keep_all = TRUE)
+
+```
+
+
+```{r echo = FALSE}
+honolulu_coords <- us_coords %>%
+  filter(city == "Honolulu") %>%
+  select(lat, lng) %>%
+  distinct()  
+
+combined_dataset <- combined_dataset %>%
+  mutate(
+    lat = ifelse(NAME == "Urban Honolulu", 21.3294, lat),
+    lng = ifelse(NAME == "Urban Honolulu", -157.846, lng)
+  )
+
+
+combined_dataset <- combined_dataset %>%
+  select(
+    GEO_ID, 
+    CBSA, 
+    NAME, 
+    `Total pop 2018`, 
+    `Total non-citizen pop 2018`, 
+    `Total pop 2023`, 
+    `Total non-citizen pop 2023`, 
+    `non_citizen_proportion_2018`, 
+    `non_citizen_proportion_2023`, 
+    `difference_in_proportion`, 
+    lat, 
+    lng
+  )
+```
+
+Part IV: Analysis 2
+
+  In the following visualizations, I will explore how these cities look on a map, and study how geographic location effects non-citizen population and the change in these populations.
+
+```{r echo = FALSE}
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+us_shapefile <- st_read("~/Desktop/PS 1702/cb_2018_us_state_500k.shp")
+cities_sf <- st_as_sf(combined_dataset, coords = c("lng", "lat"), crs = 4326)
+
+# Plot with color mapped to non-citizen proportion
+ggplot() +
+  geom_sf(data = us_shapefile, fill = "lightgray", color = "white") +
+  geom_sf(data = cities_sf, aes(color = non_citizen_proportion_2023), size = 3, alpha = 0.7) +
+  scale_color_viridis_c(option = "plasma", name = "Non-citizen Proportion") +  # Optional: better color scale
+  coord_sf(xlim = c(-160, -60), ylim = c(20, 50)) +
+  theme_minimal() +
+  labs(
+    title = "Cities by Non-citizen Proportion (2023)",
+    subtitle = "Color intensity represents proportion of non-citizens"
+  ) +
+  theme(legend.position = "right")
+
+```
+
+  Above is a map showing cities by non-citizen proportion. A lot of the dialog surrounding illegal immigration centers around southern states, as it is presumed that most illegal immigrants come from the southern border, and would logically settle in southern cities (this is already a shaky presumption, as most illegal immigrants are actually just individuals that have overstayed their visas). However, this assumption seems to be correct, at least to an extent. Cities like San Francisco, El Paso, and Miami seem to have higher non-citizen populations than the average city. And California as a whole seems to have higher non-citizen populations across the board. I suspect that this may be due to California's more liberal politics than say, Texas or Florida, which would lead to less of an effort to deport non-citizens. It is also possible that San Francisco's high rate of non-citizens could be due to foreign workers or students, that may not necessarily be in the country illegally. However, it doesn't seem that this phenomenon is entirely consistent throughout all southern cities, and a later analysis will discuss in more depth how specific regions are affected by immigration. 
+  
+  
+```{r echo = FALSE}
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+# Load shapefile
+us_shapefile <- st_read("~/Desktop/PS 1702/cb_2018_us_state_500k.shp")
+
+# Convert dataset to spatial points
+cities_sf <- st_as_sf(combined_dataset, coords = c("lng", "lat"), crs = 4326)
+
+# Plot with color representing change in immigrant proportion
+ggplot() +
+  geom_sf(data = us_shapefile, fill = "lightgray", color = "white") +
+  geom_sf(data = cities_sf, aes(color = difference_in_proportion), size = 3, alpha = 0.7) +
+  scale_color_viridis_c(option = "plasma", name = "Change in Proportion") +
+  coord_sf(xlim = c(-160, -60), ylim = c(20, 50)) +
+  theme_minimal() +
+  labs(
+    title = "Cities by Change in Immigrant Proportion (2018–2023)",
+    subtitle = "Color intensity represents percentage point change"
+  ) +
+  theme(legend.position = "right")
+
+```
+  The above map shows cities by change in proportion. Here, there is a less distinct regional pattern, although there are still some interesting things to take note of. California, which I previously noted had a large population of non-citizens in 2023, seems to be generally losing non-citizens overall. I suspect this could be due to the high cost of living and educated workforce. El Paso, which also had a large population of non-citizens, seems to be losing non-citizens too. What stood out to me on this map was Florida. The state seems to have gained non-citizens across the board since 2018, and this could be for a variety of reasons. I mostly suspect that this is due to the state's high number of spanish-speaking communities, like in Tampa and Miami. It is close to the Carribean and Latin America, and it would certainly not surprise me if those coming to the US from those places by sea would choose Florida as a place to live. Lastly, a lot of the state's economy is made up by industries like construction, accomodation, and agriculture, which are easy places for undocumented immigrants to find work. 
+
+```{r echo = FALSE}
+
+states <- tibble::tibble(
+  state = c("Ohio", "New York", "New Mexico", "Pennsylvania", "Georgia", "Georgia", "Texas", "California", "Maryland", "Louisiana", "Alabama", "Iowa", "Massachusetts", "Connecticut", "New York", "Florida", "South Carolina", "North Carolina", "Tennessee", "Illinois", "Ohio", "Ohio", "Colorado", "South Carolina", "Ohio", "Texas", "Ohio", "Florida", "Colorado", "Iowa", "Michigan", "North Carolina", "Texas", "California", "Michigan", "North Carolina", "South Carolina", "Pennsylvania", "Connecticut", "Texas", "Indiana", "Mississippi", "Florida", "Missouri", "Tennessee", "Florida", "Nevada", "Arkansas", "California", "Kentucky", "Wisconsin", "Texas", "Tennessee", "Florida", "Wisconsin", "Minnesota", "Tennessee", "Connecticut", "Louisiana", "New York", "Florida", "Utah", "Oklahoma", "Nebraska", "Florida", "California", "Florida", "Pennsylvania", "Arizona", "Pennsylvania", "Oregon", "Rhode Island", "Utah", "North Carolina", "Virginia", "California", "New York", "California", "Utah", "Texas", "California", "California", "California", "Pennsylvania", "Washington", "Washington", "Missouri", "Missouri", "California", "New York", "Florida", "Ohio", "Arizona", "Oklahoma", "Hawaii", "Virginia", "DC", "Kansas", "North Carolina", "Massachusetts")
+)
+
+combined_dataset <- combined_dataset %>%
+  arrange(NAME) %>%  
+  mutate(State = states$state)
+
+# assigning cities to states, had to be done manually because of the amount of different cities with the same name
+```
+
+
+```{r echo = FALSE}
+state_region <- c(
+"Connecticut" = "Northeast", "Maine" = "Northeast", "Massachusetts" = "Northeast", "New Hampshire" = "Northeast", "Rhode Island" = "Northeast", "Vermont" = "Northeast", "New Jersey" = "Northeast", "New York" = "Northeast", "Pennsylvania" = "Northeast",
+  
+"Illinois" = "Midwest", "Indiana" = "Midwest", "Missouri" = "Midwest", "Ohio" = "Midwest", "Wisconsin" = "Midwest", "Iowa" = "Midwest", "Kansas" = "Midwest", "Minnesota" = "Midwest", "Missouri" = "Midwest", "Nebraska" = "Midwest", "North Dakota" = "Midwest", "South Dakota" = "Midwest",
+  
+"Delaware" = "South", "Florida" = "South", "Georgia" = "South", "Maryland" = "South", "North Carolina" = "South", "South Carolina" = "South", "Virginia" = "South", "DC" = "South", "West Virginia" = "South", "Alabama" = "South", "Kentucky" = "South", "Mississippi" = "South",
+"Tennessee" = "South", "Arkansas" = "South", "Louisiana" = "South", "Oklahoma" = "South", "Texas" = "South",
+  
+"Arizona" = "West", "Colorado" = "West", "Idaho" = "West", "Montana" = "West", "Nevada" = "West", "New Mexico" = "West", "Utah" = "West", "Wyoming" = "West", "Alaska" = "West", "California" = "West", "Hawaii" = "West", "Oregon" = "West", "Washington" = "West"
+)
+
+combined_dataset <- combined_dataset %>%
+  mutate(Region = state_region[State])
+
+#assigning states to regions based on the Census' 9 regions of America
+```
+
+Part V: Analysis 3
+
+Here I want to include some additional visualizations that provide additional insight into the problem.
+
+```{r echo = FALSE}
+top_changes <- combined_dataset %>%
+  arrange(desc(difference_in_proportion)) %>%
+  slice_head(n = 10)
+
+bottom_changes <- combined_dataset %>%
+  arrange(difference_in_proportion) %>%
+  slice_head(n = 10)
+
+top_bottom <- bind_rows(top_changes, bottom_changes)
+
+top_bottom <- top_bottom %>%
+  mutate(city_state = paste(NAME, "(", State, ")", sep = ""))
+
+ggplot(top_bottom, aes(x = reorder(city_state, difference_in_proportion), y = difference_in_proportion, fill = difference_in_proportion > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top 10 Increases and Decreases in Non-Citizen Proportion",
+    x = "Metro Area (State)",
+    y = "Change in Non-Citizen Proportion (%)"
+  ) +
+  theme_minimal()
+
+```
+  Here is a visualization showing the cities with the largest increases and decreases in immigrant proportion. This only further confirms that Florida is experiencing large increases in immigrant populations, as it holds 3 cities on the top 10. And interestingly, the cities with the largest decreases are all either southern or western, with the southern cities almost all being in Texas. This doesn't surprise me, as Texas has made large efforts to detain illegal immigrants in recent years, and this has lead to either deportations or migrations to safer states. I am not surprised to see western states such as Oregon, Hawaii, and California on this list either, as these states have become notoriously expensive in recent years. 
+
+```{r echo = FALSE}
+library(ggridges)
+
+ggplot(combined_dataset, aes(x = difference_in_proportion, y = Region, fill = Region)) +
+  geom_density_ridges(alpha = 0.7, scale = 1.5) +
+  theme_minimal() +
+  labs(
+    title = "Change in Non-Citizen Proportion by Region (2018–2023)",
+    x = "Change in Proportion (% points)",
+    y = "Region"
+  ) +
+  theme(legend.position = "none")
+```
+
+  Here is a visualization that further breaks down immigration trends by region. The West seems to clearly have the largest decreases in immigrant populations, as the mean city appears to have lost non-citizen population. The south, on the other hand, appears to have the highest mean, demonstrating that these states have had the largest increases of non-citizen populations. However, the south also has quite a long tail, demonstrating that a select number of cities in the south have lost a quite bit of non-citizens between 2018 and 2023. The northeast also seems to have generally gained non-citizens at a level similar to the south, although there are 2 peaks here, which demonstrates that a small number of northeast cities are gaining more non-citizens than almost anywhere else in the country. Lastly, the Midwest seems to have the most consistent distribution here. The spread seems to be very consistent, and the average mid-western city's non-citizen proportion has increased by around 0.25 percentage points. 
+
+Part VI: Conclusion
+
+  The above analyses reveal a far more nuanced view of immigration than what is often portrayed in political discourse or media rhetoric. While non-citizens certainly are a significant and growing part of the population in many parts of the country, the scale of this growth is often completely blown out of proportion. Across America's 100 largest metropolitan areas, the average increase of non-citizen porpotion between 2018 and 2023 was just +0.19 percentage points, a far cry from what is often depicted in media. Even the most drastic increases are less than +2 percentage points, once again pointing out just how exaggerated the narrative around illegal immigration is nowadays. Meanwhile, many cities, particularly in the West, are actually seeing decreases in their non-citizen populations. 
+  
+  In regards to this issue, regional trends can give us far more insight than national ones. Western cities, especially in states like California and Oregon, are seeing notable decreases in non-citizen population - likely due to price increases and job markets that require a college degree. On the other hand, Southern cities, and specifically those in Florida, are experiencing increases. This is likely due to cultural reasons, as these cities tend to have large Latin American communities, and a demand for labor in industries where undocumented immigrants will have an easier time finding work - such as hospitality, construction, and agriculture. Interestingly, while the South seems to be seeing a general increase in non-citizens, Texas seems to be defying the trend, possibly due to more aggressive enforcement of deportations, which could also cause undocumented immigrants to move elsewhere.
+  
+  Ultimately, my project highlights how the issue of illegal immigration is often blown out of proportion. While there certainly are places that are seeing an increase in non-citizens, these changes aren't as explosive as a lot of media would lead people to believe, and in general, the increases are incremental and incredibly small. The regional variation around immigration also demonstrates that there is no blanket way of dealing with the issue, and that there needs to be localized, evidence based discussions around the issue instead of sweeping generalizations. By taking a closer look at where these changes are happening, and where they aren't, we can gain a clearer picture of how immigration is actually happening across America today. 
