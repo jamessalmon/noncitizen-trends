@@ -49,6 +49,14 @@ US Geological Survey
 
 simplemaps.com
 
+**Reproducibility:**
+To reproduce this analysis, open `PROJECT.Rmd` in RStudio and ensure the following packages are installed:
+`tidyverse`, `ggplot2`, `dplyr`, and `sf`.
+
+Data sources can be accessed through the [American Community Survey](https://www.census.gov/programs-surveys/acs) and [SimpleMaps](https://simplemaps.com/data/us-cities).
+
+
+
 🔗 [View the full HTML report here](https://jamessalmon.github.io/noncitizen-trends/PROJECT.html)
 
 
